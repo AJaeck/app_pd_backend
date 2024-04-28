@@ -1,15 +1,19 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_cors import CORS
 import uuid
 from datetime import datetime
+from werkzeug.utils import secure_filename
+import os
+import speech_recognition as sr
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(app)
-
+migrate = Migrate(app, db)
 
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=str(uuid.uuid4()))
@@ -24,8 +28,11 @@ class Results(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     taps = db.Column(db.Integer, nullable=False)
+    audio_file_path = db.Column(db.String(256), nullable=True)  # Path to the audio file
+    transcription = db.Column(db.Text, nullable=True)  # Transcribed text
 
     user = db.relationship('User', backref=db.backref('results', lazy=True))
+
 
 @app.route('/')
 def hello_world():
@@ -100,6 +107,49 @@ def save_tapping_result(user_id):
 def get_tapping_results(user_id):
     results = Results.query.filter_by(user_id=user_id).all()
     return jsonify([{"date": result.date.strftime('%Y-%m-%d'), "taps": result.taps} for result in results]), 200
+
+@app.route('/upload-audio/<user_id>', methods=['POST'])
+def upload_audio(user_id):
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join('audio_files', filename)  # Define your path to save audio files
+        file.save(filepath)
+
+        # Call transcription function here
+        transcription = transcribe_audio(filepath)
+
+        # Save results to database
+        new_result = Results(user_id=user_id, date=datetime.utcnow(), audio_file_path=filepath, transcription=transcription)
+        db.session.add(new_result)
+        db.session.commit()
+
+        return jsonify({'message': 'File uploaded and transcribed successfully', 'transcription': transcription}), 200
+
+def transcribe_audio(file_path):
+    # Initialize the recognizer
+    r = sr.Recognizer()
+
+    # Open the file
+    with sr.AudioFile(file_path) as source:
+        # Adjust for ambient noise and record the audio
+        r.adjust_for_ambient_noise(source)
+        audio_data = r.record(source)
+
+        try:
+            # Recognize (convert from speech to text) using the default API key
+            text = r.recognize_google(audio_data)
+            return text
+        except sr.UnknownValueError:
+            # API was unable to understand the audio
+            return "Google Speech Recognition could not understand audio"
+        except sr.RequestError as e:
+            # Request failed
+            return f"Could not request results from Google Speech Recognition service; {e}"
 
 def init_db():
     with app.app_context():
