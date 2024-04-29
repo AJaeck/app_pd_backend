@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -7,9 +7,12 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
 import speech_recognition as sr
+import ffmpeg
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
+# Set the PATH environment variable
+os.environ['PATH'] += os.pathsep + r"C:\Users\ajaec\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-7.0-full_build\bin"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(app)
@@ -22,7 +25,6 @@ class User(db.Model):
     dob = db.Column(db.Date, nullable=False)
     # No need to manually define the 'results' relationship here.
 
-
 class Results(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
@@ -33,10 +35,9 @@ class Results(db.Model):
 
     user = db.relationship('User', backref=db.backref('results', lazy=True))
 
-
 @app.route('/')
 def hello_world():
-    return 'Hello World!'
+    return render_template('home.html')
 
 @app.route('/create-user', methods=['POST'])
 def create_user():
@@ -62,14 +63,13 @@ def get_users():
 @app.route('/get-user-data/<user_id>', methods=['GET'])
 def get_user(user_id):
     user = User.query.get(user_id)
-    print(user)
     if user:
         user_data = {
             "id": user.id,
             "first_name": user.first_name,
             "last_name": user.last_name,
             "dob": user.dob.strftime('%d.%m.%Y'),
-            "results": [{"date": result.date.strftime('%Y-%m-%d'), "taps": result.taps} for result in user.results]
+            "results": [{"date": result.date.strftime('%Y-%m-%d'), "taps": result.taps, "transcription": result.transcription} for result in user.results]
         }
         return jsonify(user_data), 200
     else:
@@ -116,19 +116,39 @@ def upload_audio(user_id):
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     if file:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join('audio_files', filename)  # Define your path to save audio files
-        file.save(filepath)
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"{user_id}-{timestamp}-audiofile"
+        original_filepath = os.path.join('audio_files', filename)  # Define your path to save audio files
+        file.save(original_filepath)
+
+        # Convert the file to WAV using ffmpeg-python
+        wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
+        convert_to_wav(original_filepath, wav_filepath)
 
         # Call transcription function here
-        transcription = transcribe_audio(filepath)
+        success, transcription_or_error = transcribe_audio(wav_filepath)
 
-        # Save results to database
-        new_result = Results(user_id=user_id, date=datetime.utcnow(), audio_file_path=filepath, transcription=transcription)
-        db.session.add(new_result)
-        db.session.commit()
+        # Optionally, remove files after processing
+        os.remove(original_filepath)
+        if success:
 
-        return jsonify({'message': 'File uploaded and transcribed successfully', 'transcription': transcription}), 200
+            # Save results to database - uncomment when needed again
+            #new_speech_result = Results(user_id=user_id, date=datetime.utcnow(), taps=0, audio_file_path=wav_filepath, transcription=transcription_or_error)
+
+            try:
+                #db.session.add(new_speech_result)
+                #db.session.commit()
+                return jsonify({'message': 'File uploaded and processed successfully', 'transcription': transcription_or_error}), 200
+            except Exception as e:
+                db.session.rollback()
+                print(f"Database transaction failed: {str(e)}")
+                return jsonify({'error': f"Database error: {str(e)}"}), 500
+        else:
+            return jsonify(
+                {'error': 'Transcription failed', 'reason': transcription_or_error}), 422  # 422 Unprocessable Entity
+
+def convert_to_wav(input_path, output_path):
+    ffmpeg.input(input_path).output(output_path).run()
 
 def transcribe_audio(file_path):
     # Initialize the recognizer
@@ -142,14 +162,15 @@ def transcribe_audio(file_path):
 
         try:
             # Recognize (convert from speech to text) using the default API key
-            text = r.recognize_google(audio_data)
-            return text
+            text = r.recognize_google(audio_data, language='de-DE')
+            return (True, text)
         except sr.UnknownValueError:
             # API was unable to understand the audio
-            return "Google Speech Recognition could not understand audio"
+            print("Google Speech Recognition could not understand audio")
+            return (False, "Google Speech Recognition could not understand audio")
         except sr.RequestError as e:
             # Request failed
-            return f"Could not request results from Google Speech Recognition service; {e}"
+            return (False, f"Could not request results from Google Speech Recognition service; {e}")
 
 def init_db():
     with app.app_context():
