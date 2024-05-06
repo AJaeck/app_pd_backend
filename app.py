@@ -37,7 +37,11 @@ class Results(db.Model):
 
 @app.route('/')
 def hello_world():
-    return render_template('home.html')
+    return "Hello World"
+
+@app.route('/speech-analysis', methods=['GET'])
+def speech_analysis():
+    return render_template('speech-analysis.html')
 
 @app.route('/create-user', methods=['POST'])
 def create_user():
