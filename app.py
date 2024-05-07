@@ -1,15 +1,27 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask_bootstrap import Bootstrap5
+from flask_wtf import FlaskForm, CSRFProtect
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, Length
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 import uuid
 from datetime import datetime
-from werkzeug.utils import secure_filename
 import os
 import speech_recognition as sr
 import ffmpeg
+import secrets
 
 app = Flask(__name__)
+foo = secrets.token_urlsafe(16)
+app.secret_key = foo
+
+# Bootstrap-Flask requires this line
+bootstrap = Bootstrap5(app)
+# Flask-WTF requires this line
+csrf = CSRFProtect(app)
+
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 # Set the PATH environment variable
 os.environ['PATH'] += os.pathsep + r"C:\Users\ajaec\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-7.0-full_build\bin"
@@ -17,6 +29,10 @@ os.environ['PATH'] += os.pathsep + r"C:\Users\ajaec\AppData\Local\Microsoft\WinG
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+class UploadAudioFile(FlaskForm):
+    name = StringField('Which actor is your favorite?', validators=[DataRequired(), Length(10, 40)])
+    submit = SubmitField('Submit')
 
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=str(uuid.uuid4()))
@@ -39,9 +55,19 @@ class Results(db.Model):
 def hello_world():
     return "Hello World"
 
-@app.route('/speech-analysis', methods=['GET'])
+@app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
-    return render_template('speech-analysis.html')
+    names = ["Tom"]
+    form = UploadAudioFile()
+    message = ""
+    if form.validate_on_submit():
+        name = form.name.data
+        if name.lower() in names:
+            # empty the form field
+            form.name.data = ""
+        else:
+            message = "That actor is not in our database."
+    return render_template('speech-analysis.html', names=names, form=form, message=message)
 
 @app.route('/create-user', methods=['POST'])
 def create_user():
