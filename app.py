@@ -1,8 +1,6 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask import Flask, request, jsonify, render_template, flash
 from flask_bootstrap import Bootstrap5
-from flask_wtf import FlaskForm, CSRFProtect
-from wtforms import StringField, SubmitField
-from wtforms.validators import DataRequired, Length
+from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -12,27 +10,32 @@ import os
 import speech_recognition as sr
 import ffmpeg
 import secrets
+from werkzeug.utils import secure_filename
+
+#Import WTForms https://flask-wtf.readthedocs.io/en/1.0.x/
+from forms import Selection_Form, Upload_Form
 
 app = Flask(__name__)
 foo = secrets.token_urlsafe(16)
 app.secret_key = foo
+app.config['UPLOAD_FOLDER'] = 'static/audio_uploads/'
+app.config['MAX_CONTENT_LENGTH'] = 250 * 1024 * 1024 # 25MB
+app.config['UPLOAD_EXTENSIONS'] = ['.mp3', '.wav']
 
 # Bootstrap-Flask requires this line
 bootstrap = Bootstrap5(app)
 # Flask-WTF requires this line
 csrf = CSRFProtect(app)
 
+# Allow CORS for development env
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
+
 # Set the PATH environment variable
 os.environ['PATH'] += os.pathsep + r"C:\Users\ajaec\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-7.0-full_build\bin"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-
-class UploadAudioFile(FlaskForm):
-    name = StringField('Which actor is your favorite?', validators=[DataRequired(), Length(10, 40)])
-    submit = SubmitField('Submit')
 
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=str(uuid.uuid4()))
@@ -57,17 +60,25 @@ def hello_world():
 
 @app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
-    names = ["Tom"]
-    form = UploadAudioFile()
-    message = ""
+    form = Upload_Form()
+
     if form.validate_on_submit():
-        name = form.name.data
-        if name.lower() in names:
-            # empty the form field
-            form.name.data = ""
-        else:
-            message = "That actor is not in our database."
-    return render_template('speech-analysis.html', names=names, form=form, message=message)
+        audio = form.file.data
+        audio_filename = secure_filename(audio.filename)
+        if audio_filename != '':
+            file_ext = os.path.splitext(audio_filename)[1]
+            if file_ext not in app.config['UPLOAD_EXTENSIONS']:
+                print(f'File Extension {file_ext} not supported')
+
+            # Image save to static image folder
+            audio_name = str(uuid.uuid1()) + "_" + audio_filename
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_name)
+            audio.save(image_path)
+
+            flash(f'Deine Audio-Datei wurde erfolgreich hochgeladen', 'success')
+
+
+    return render_template("speech-analysis.html", form=form, extensions=app.config['UPLOAD_EXTENSIONS'])
 
 @app.route('/create-user', methods=['POST'])
 def create_user():
@@ -148,7 +159,7 @@ def upload_audio(user_id):
     if file:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         filename = f"{user_id}-{timestamp}-audiofile"
-        original_filepath = os.path.join('audio_files', filename)  # Define your path to save audio files
+        original_filepath = os.path.join('static/audio_files', filename)  # Define your path to save audio files
         file.save(original_filepath)
 
         # Convert the file to WAV using ffmpeg-python
