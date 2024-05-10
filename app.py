@@ -13,7 +13,7 @@ import secrets
 from werkzeug.utils import secure_filename
 
 #Import WTForms https://flask-wtf.readthedocs.io/en/1.0.x/
-from forms import Selection_Form, Upload_Form
+from forms import Upload_Form
 
 app = Flask(__name__)
 foo = secrets.token_urlsafe(16)
