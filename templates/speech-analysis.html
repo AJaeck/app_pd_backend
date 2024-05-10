@@ -6,7 +6,6 @@
 Dysathria Analyzer
 {% endblock %}
 
-
 {% block content %}
 
 <!--
@@ -34,12 +33,11 @@ Dysathria Analyzer
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     {% endif %}
-    <form class="row g-3 needs-validation" method="POST" action="/speech-analysis" novalidate>
+    <form class="row g-3 needs-validation" method="POST" action="/speech-analysis" novalidate enctype="multipart/form-data">
     {{ form.csrf_token }}
     {{ render_field(form.file) }}
     {{ render_form_row([form.submit], row_class="text-center") }}
     </form>
 </div>
-
 
 {% endblock %}

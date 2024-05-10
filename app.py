@@ -56,7 +56,7 @@ class Results(db.Model):
 
 @app.route('/')
 def hello_world():
-    return "Hello World"
+    return render_template("index.html")
 
 @app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
@@ -64,6 +64,7 @@ def speech_analysis():
 
     if form.validate_on_submit():
         audio = form.file.data
+        print(audio)
         audio_filename = secure_filename(audio.filename)
         if audio_filename != '':
             file_ext = os.path.splitext(audio_filename)[1]
