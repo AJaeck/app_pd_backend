@@ -61,7 +61,7 @@ def hello_world():
 @app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
     form = Upload_Form()
-    transcription_upload_audio = "test"
+    transcription_upload_audio = None
 
     if form.validate_on_submit():
         audio = form.file.data

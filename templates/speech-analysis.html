@@ -49,7 +49,7 @@ Dysathria Analyzer
     {{ render_field(form.file) }}
     {{ render_form_row([form.submit], row_class="text-center") }}
     </form>
-    {% if transcription_upload_audio %}
+    {% if transcription %}
         <h2>Dein Ergebnis</h2>
         <p>{{ transcription }}</p>
     {% endif %}

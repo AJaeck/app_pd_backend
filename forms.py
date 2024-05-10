@@ -9,4 +9,4 @@ class Upload_Form(FlaskForm):
                     'Es sind nur folgende Formate erlaubt: .mp3 .wav'),
         DataRequired('Du hast keine Audio Datei hochgeladen')
     ])
-    submit = SubmitField('Upload 🚀')
+    submit = SubmitField('Starte Transkription')
