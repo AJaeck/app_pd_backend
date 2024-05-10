@@ -61,25 +61,57 @@ def hello_world():
 @app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
     form = Upload_Form()
+    transcription_upload_audio = "test"
 
     if form.validate_on_submit():
         audio = form.file.data
-        print(audio)
         audio_filename = secure_filename(audio.filename)
         if audio_filename != '':
             file_ext = os.path.splitext(audio_filename)[1]
             if file_ext not in app.config['UPLOAD_EXTENSIONS']:
                 print(f'File Extension {file_ext} not supported')
 
-            # Image save to static image folder
+            # Audio save to static audio folder
             audio_name = str(uuid.uuid1()) + "_" + audio_filename
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_name)
-            audio.save(image_path)
+            audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_name)
+            audio.save(audio_path)
 
-            flash(f'Deine Audio-Datei wurde erfolgreich hochgeladen', 'success')
+            print(f"{audio_name} successfully uploaded to {app.config['UPLOAD_FOLDER']}")
 
+            def transcribe_audio(file_path):
+                # Initialize the recognizer
+                r = sr.Recognizer()
 
-    return render_template("speech-analysis.html", form=form, extensions=app.config['UPLOAD_EXTENSIONS'])
+                # Open the file
+                with sr.AudioFile(file_path) as source:
+                    # Adjust for ambient noise and record the audio
+                    r.adjust_for_ambient_noise(source)
+                    audio_data = r.record(source)
+
+                    try:
+                        # Recognize (convert from speech to text) using the default API key
+                        text = r.recognize_google(audio_data, language='de-DE')
+                        print(True, text)
+                        return True, text
+                    except sr.UnknownValueError:
+                        # API was unable to understand the audio
+                        print("Google Speech Recognition could not understand audio")
+                        return False, "Google Speech Recognition could not understand audio"
+                    except sr.RequestError as e:
+                        # Request failed
+                        print(False, f"Could not request results from Google Speech Recognition service; {e}")
+                        return False, f"Could not request results from Google Speech Recognition service; {e}"
+
+            # Call transcription function here
+            success, transcription_upload_audio = transcribe_audio(audio_path)
+            print(transcription_upload_audio)
+
+            if success:
+                print(f"{audio_name} successfully transcribed")
+            else:
+                flash(transcription_upload_audio, 'error')  # Show error message as flash message
+
+    return render_template("speech-analysis.html", form=form, extensions=app.config['UPLOAD_EXTENSIONS'], transcription=transcription_upload_audio)
 
 @app.route('/create-user', methods=['POST'])
 def create_user():

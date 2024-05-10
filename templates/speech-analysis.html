@@ -15,6 +15,17 @@ Dysathria Analyzer
 -->
 
 
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show text-md-center position-absolute top-20 start-50 translate-middle" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
 <div class="container container__100-resp form_page px-4 py-5">
     <h1 class="text-center">LMU Speech Analyzer</h1>
     <p>
@@ -38,6 +49,10 @@ Dysathria Analyzer
     {{ render_field(form.file) }}
     {{ render_form_row([form.submit], row_class="text-center") }}
     </form>
+    {% if transcription_upload_audio %}
+        <h2>Dein Ergebnis</h2>
+        <p>{{ transcription }}</p>
+    {% endif %}
 </div>
 
 {% endblock %}
