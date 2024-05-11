@@ -26,6 +26,8 @@ app.config['UPLOAD_EXTENSIONS'] = ['.mp3', '.wav']
 bootstrap = Bootstrap5(app)
 # Flask-WTF requires this line
 csrf = CSRFProtect(app)
+# Use csrf.exempt to exclude this route from CSRF protection
+
 
 # Allow CORS for development env
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
@@ -129,6 +131,8 @@ def create_user():
     db.session.commit()
     return jsonify({"message": "User created successfully!", "user_id": new_user.id}), 201
 
+csrf.exempt(create_user) # extempt this endpoint from csrf token
+
 @app.route('/get-users', methods=['GET'])
 def get_users():
     users = User.query.all()
@@ -163,6 +167,7 @@ def delete_user(user_id):
     db.session.commit()
     return jsonify({"message": "User and associated data deleted successfully!"}), 200
 
+csrf.exempt(delete_user) # extempt this endpoint from csrf token
 
 @app.route('/save-tapping-result/<user_id>', methods=['POST'])
 def save_tapping_result(user_id):
@@ -176,6 +181,8 @@ def save_tapping_result(user_id):
     db.session.add(tapping_result)
     db.session.commit()
     return jsonify({"message": "Tapping result saved successfully!"}), 201
+
+csrf.exempt(save_tapping_result) # extempt this endpoint from csrf token
 
 @app.route('/get-tapping-results/<user_id>', methods=['GET'])
 def get_tapping_results(user_id):
@@ -214,12 +221,14 @@ def upload_audio(user_id):
                 #db.session.commit()
                 return jsonify({'message': 'File uploaded and processed successfully', 'transcription': transcription_or_error}), 200
             except Exception as e:
-                db.session.rollback()
+                #db.session.rollback()
                 print(f"Database transaction failed: {str(e)}")
                 return jsonify({'error': f"Database error: {str(e)}"}), 500
         else:
             return jsonify(
                 {'error': 'Transcription failed', 'reason': transcription_or_error}), 422  # 422 Unprocessable Entity
+
+csrf.exempt(upload_audio) # extempt this endpoint from csrf token
 
 def convert_to_wav(input_path, output_path):
     ffmpeg.input(input_path).output(output_path).run()
