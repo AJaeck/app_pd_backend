@@ -168,6 +168,7 @@ def get_tapping_results(user_id):
 
 @app.route('/process_speech_tasks/<task_type>/<user_id>', methods=['POST'])
 def process_speech_tasks(task_type, user_id):
+
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
@@ -178,13 +179,15 @@ def process_speech_tasks(task_type, user_id):
         filename = f"{user_id}-{timestamp}-{task_type}audiofile"
         original_filepath = os.path.join(f'static/audio_speech_tasks/{task_type}', filename)  # Define your path to save audio files
         file.save(original_filepath)
-
         if task_type == 'reading':
+            #get selected transcription algorithm
+            transcriptionAlgo = request.form['algorithm']
+            print(transcriptionAlgo)
             # Convert the file to WAV using ffmpeg-python
             wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
             convert_to_wav(original_filepath, wav_filepath)
             # Call transcription function here
-            success, transcription_or_error = transcribe_audio(wav_filepath)
+            success, transcription_or_error = transcribe_audio(wav_filepath, transcriptionAlgo)
             print(transcription_or_error)
             # Optionally, remove files after processing
             os.remove(original_filepath)

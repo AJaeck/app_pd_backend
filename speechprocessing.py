@@ -4,7 +4,7 @@ import ffmpeg
 def convert_to_wav(input_path, output_path):
     ffmpeg.input(input_path).output(output_path).run()
 
-def transcribe_audio(file_path):
+def transcribe_audio(file_path, algorithm):
     # Initialize the recognizer
     r = sr.Recognizer()
 
