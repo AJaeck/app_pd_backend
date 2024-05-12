@@ -221,7 +221,7 @@ def process_speech_tasks(task_type, user_id):
                     # db.session.add(new_speech_result)
                     # db.session.commit()
                     return jsonify({'message': 'File uploaded and processed successfully',
-                                    'transcription': extraction_or_error,
+                                    'results': extraction_or_error,
                                     'taskType': task_type
                                     }), 200
                 except Exception as e:

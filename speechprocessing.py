@@ -28,7 +28,7 @@ def transcribe_audio(file_path):
 def feature_extraction(file_path):
     try:
         # Recognize (convert from speech to text) using the default API key
-        text = "This worked well"
+        text = "Feature Extraction coming soon"
         return (True, text)
     except sr.UnknownValueError:
         # API was unable to understand the audio
