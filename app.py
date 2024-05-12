@@ -7,13 +7,14 @@ from flask_cors import CORS
 import uuid
 from datetime import datetime
 import os
-import speech_recognition as sr
-import ffmpeg
 import secrets
 from werkzeug.utils import secure_filename
 
 #Import WTForms https://flask-wtf.readthedocs.io/en/1.0.x/
 from forms import Upload_Form
+
+# Importing the speech processing functions
+from speechprocessing import transcribe_audio, convert_to_wav, feature_extraction
 
 app = Flask(__name__)
 foo = secrets.token_urlsafe(16)
@@ -79,30 +80,6 @@ def speech_analysis():
             audio.save(audio_path)
 
             print(f"{audio_name} successfully uploaded to {app.config['UPLOAD_FOLDER']}")
-
-            def transcribe_audio(file_path):
-                # Initialize the recognizer
-                r = sr.Recognizer()
-
-                # Open the file
-                with sr.AudioFile(file_path) as source:
-                    # Adjust for ambient noise and record the audio
-                    r.adjust_for_ambient_noise(source)
-                    audio_data = r.record(source)
-
-                    try:
-                        # Recognize (convert from speech to text) using the default API key
-                        text = r.recognize_google(audio_data, language='de-DE')
-                        print(True, text)
-                        return True, text
-                    except sr.UnknownValueError:
-                        # API was unable to understand the audio
-                        print("Google Speech Recognition could not understand audio")
-                        return False, "Google Speech Recognition could not understand audio"
-                    except sr.RequestError as e:
-                        # Request failed
-                        print(False, f"Could not request results from Google Speech Recognition service; {e}")
-                        return False, f"Could not request results from Google Speech Recognition service; {e}"
 
             # Call transcription function here
             success, transcription_upload_audio = transcribe_audio(audio_path)
@@ -189,8 +166,8 @@ def get_tapping_results(user_id):
     results = Results.query.filter_by(user_id=user_id).all()
     return jsonify([{"date": result.date.strftime('%Y-%m-%d'), "taps": result.taps} for result in results]), 200
 
-@app.route('/upload-audio/<user_id>', methods=['POST'])
-def upload_audio(user_id):
+@app.route('/process_speech_tasks/<task_type>/<user_id>', methods=['POST'])
+def process_speech_tasks(task_type, user_id):
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
@@ -199,61 +176,70 @@ def upload_audio(user_id):
     if file:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         filename = f"{user_id}-{timestamp}-audiofile"
-        original_filepath = os.path.join('static/audio_files', filename)  # Define your path to save audio files
+        original_filepath = os.path.join(f'static/audio_speech_tasks/{task_type}', filename)  # Define your path to save audio files
         file.save(original_filepath)
 
-        # Convert the file to WAV using ffmpeg-python
-        wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
-        convert_to_wav(original_filepath, wav_filepath)
-
-        # Call transcription function here
-        success, transcription_or_error = transcribe_audio(wav_filepath)
-
-        # Optionally, remove files after processing
-        os.remove(original_filepath)
-        if success:
-
-            # Save results to database - uncomment when needed again
-            #new_speech_result = Results(user_id=user_id, date=datetime.utcnow(), taps=0, audio_file_path=wav_filepath, transcription=transcription_or_error)
-
-            try:
-                #db.session.add(new_speech_result)
-                #db.session.commit()
-                return jsonify({'message': 'File uploaded and processed successfully', 'transcription': transcription_or_error}), 200
-            except Exception as e:
-                #db.session.rollback()
-                print(f"Database transaction failed: {str(e)}")
-                return jsonify({'error': f"Database error: {str(e)}"}), 500
+        if task_type == 'reading':
+            # Convert the file to WAV using ffmpeg-python
+            wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
+            convert_to_wav(original_filepath, wav_filepath)
+            # Call transcription function here
+            success, transcription_or_error = transcribe_audio(wav_filepath)
+            print(transcription_or_error)
+            # Optionally, remove files after processing
+            os.remove(original_filepath)
+            if success:
+                # Save results to database - uncomment when needed again
+                # new_speech_result = Results(user_id=user_id, date=datetime.utcnow(), taps=0, audio_file_path=wav_filepath, transcription=transcription_or_error)
+                try:
+                    # db.session.add(new_speech_result)
+                    # db.session.commit()
+                    return jsonify({'message': 'File uploaded and processed successfully',
+                                    'results': transcription_or_error,
+                                    "task-type": task_type
+                                    }), 200
+                except Exception as e:
+                    # db.session.rollback()
+                    print(f"Database transaction failed: {str(e)}")
+                    return jsonify({'error': f"Database error: {str(e)}"}), 500
+            else:
+                return jsonify(
+                    {'error': 'Transcription failed',
+                     'reason': transcription_or_error}), 422  # 422 Unprocessable Entity
+        elif task_type == 'pataka':
+            # Convert the file to WAV using ffmpeg-python
+            wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
+            convert_to_wav(original_filepath, wav_filepath)
+            # Call transcription function here
+            success, extraction_or_error = feature_extraction(wav_filepath)
+            # Optionally, remove files after processing
+            os.remove(original_filepath)
+            if success:
+                # Save results to database - uncomment when needed again
+                # new_speech_result = Results(user_id=user_id, date=datetime.utcnow(), taps=0, audio_file_path=wav_filepath, transcription=transcription_or_error)
+                try:
+                    # db.session.add(new_speech_result)
+                    # db.session.commit()
+                    return jsonify({'message': 'File uploaded and processed successfully',
+                                    'transcription': extraction_or_error,
+                                    'taskType': task_type
+                                    }), 200
+                except Exception as e:
+                    # db.session.rollback()
+                    print(f"Database transaction failed: {str(e)}")
+                    return jsonify({'error': f"Database error: {str(e)}"}), 500
+            else:
+                return jsonify(
+                    {'error': 'Feature extraction failed',
+                     'reason': extraction_or_error}), 422  # 422 Unprocessable Entity
         else:
             return jsonify(
-                {'error': 'Transcription failed', 'reason': transcription_or_error}), 422  # 422 Unprocessable Entity
+                {'error': 'Transcription failed',
+                 'reason': f"No correct task parameter definied. Please etiher use reading or pataka. "
+                           f"Your parameter: {task_type}" }), 422  # 422 Unprocessable Entity
 
-csrf.exempt(upload_audio) # extempt this endpoint from csrf token
 
-def convert_to_wav(input_path, output_path):
-    ffmpeg.input(input_path).output(output_path).run()
-
-def transcribe_audio(file_path):
-    # Initialize the recognizer
-    r = sr.Recognizer()
-
-    # Open the file
-    with sr.AudioFile(file_path) as source:
-        # Adjust for ambient noise and record the audio
-        r.adjust_for_ambient_noise(source)
-        audio_data = r.record(source)
-
-        try:
-            # Recognize (convert from speech to text) using the default API key
-            text = r.recognize_google(audio_data, language='de-DE')
-            return (True, text)
-        except sr.UnknownValueError:
-            # API was unable to understand the audio
-            print("Google Speech Recognition could not understand audio")
-            return (False, "Google Speech Recognition could not understand audio")
-        except sr.RequestError as e:
-            # Request failed
-            return (False, f"Could not request results from Google Speech Recognition service; {e}")
+csrf.exempt(process_speech_tasks) # extempt this endpoint from csrf token
 
 def init_db():
     with app.app_context():
