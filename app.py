@@ -175,7 +175,7 @@ def process_speech_tasks(task_type, user_id):
         return jsonify({'error': 'No selected file'}), 400
     if file:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        filename = f"{user_id}-{timestamp}-audiofile"
+        filename = f"{user_id}-{timestamp}-{task_type}audiofile"
         original_filepath = os.path.join(f'static/audio_speech_tasks/{task_type}', filename)  # Define your path to save audio files
         file.save(original_filepath)
 
