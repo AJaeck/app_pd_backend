@@ -12,9 +12,8 @@ from werkzeug.utils import secure_filename
 
 #Import WTForms https://flask-wtf.readthedocs.io/en/1.0.x/
 from forms import Upload_Form
-
 # Importing the speech processing functions
-from speechprocessing import transcribe_audio, convert_to_wav, feature_extraction
+from speechprocessing import SpeechTranscriber, convert_to_wav, feature_extraction
 
 app = Flask(__name__)
 foo = secrets.token_urlsafe(16)
@@ -61,36 +60,34 @@ class Results(db.Model):
 def hello_world():
     return render_template("index.html")
 
+from speechprocessing import SpeechTranscriber
+
 @app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
     form = Upload_Form()
-    transcription_upload_audio = None
+    transcription_results = {}
 
     if form.validate_on_submit():
         audio = form.file.data
+        choice = form.transcription_choice.data
         audio_filename = secure_filename(audio.filename)
+
         if audio_filename != '':
             file_ext = os.path.splitext(audio_filename)[1]
             if file_ext not in app.config['UPLOAD_EXTENSIONS']:
-                print(f'File Extension {file_ext} not supported')
+                flash(f'File Extension {file_ext} not supported', 'error')
+                return render_template("speech-analysis.html", form=form)
 
-            # Audio save to static audio folder
             audio_name = str(uuid.uuid1()) + "_" + audio_filename
             audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_name)
             audio.save(audio_path)
 
-            print(f"{audio_name} successfully uploaded to {app.config['UPLOAD_FOLDER']}")
+            transcriber = SpeechTranscriber()
+            success, text = transcriber.transcribe_audio(audio_path, choice)
+            transcription_results[choice] = text if success else "Transcription failed"
 
-            # Call transcription function here
-            success, transcription_upload_audio = transcribe_audio(audio_path)
-            print(transcription_upload_audio)
+    return render_template("speech-analysis.html", form=form, transcription=transcription_results)
 
-            if success:
-                print(f"{audio_name} successfully transcribed")
-            else:
-                flash(transcription_upload_audio, 'error')  # Show error message as flash message
-
-    return render_template("speech-analysis.html", form=form, extensions=app.config['UPLOAD_EXTENSIONS'], transcription=transcription_upload_audio)
 
 @app.route('/create-user', methods=['POST'])
 def create_user():

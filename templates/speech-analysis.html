@@ -37,22 +37,32 @@ Dysathria Analyzer
         ihre sprachlichen Fähigkeiten verbessern möchten.
     </p>
     <br>
-    {% if error_statement %}
-    <div class="alert alert-warning alert-dismissible fade show text-center" role="alert">
-      <strong>Holy guacamole🥑</strong> {{ error_statement }} Wenn du Hilfe brauchst kontaktiere
-      <a class="link-slider" href="mailto:vorname.nachname@med.uni-muenchen.de"><strong>Alexander Jäck</strong></a>
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-    {% endif %}
-    <form class="row g-3 needs-validation" method="POST" action="/speech-analysis" novalidate enctype="multipart/form-data">
-    {{ form.csrf_token }}
-    {{ render_field(form.file) }}
-    {{ render_form_row([form.submit], row_class="text-center") }}
+    <form method="POST" action="/speech-analysis" enctype="multipart/form-data" id="uploadForm">
+        {{ form.csrf_token }}
+        {{ render_field(form.file) }}
+        {{ render_field(form.transcription_choice) }}
+       <div class="text-center">
+            <button type="submit" class="btn btn-primary" id="submitBtn">Starte Transkription</button>
+        </div>
+        <div class="d-flex justify-content-center m-3">
+          <div id="loadingSpinner" class="spinner-border text-primary" role="status" style="display: none;">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
     </form>
     {% if transcription %}
         <h2>Dein Ergebnis</h2>
-        <p>{{ transcription }}</p>
+        {% for key, value in transcription.items() %}
+            <h3>{{ key }} Transcription</h3>
+            <p>{{ value }}</p>
+        {% endfor %}
     {% endif %}
 </div>
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', function() {
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('loadingSpinner').style.display = 'inline-block';
 
+    });
+</script>
 {% endblock %}
