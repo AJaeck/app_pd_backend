@@ -68,15 +68,30 @@
             </form>
 
             <!-- Transcription Results -->
+
             {% if transcription %}
                 <div class="mt-5">
                     <h2>Transcription Results</h2>
-                    {% for choice, result in transcription.items() %}
-                        <div class="mt-3">
-                            <h4>{{ choice }}</h4>
-                            <p>{{ result }}</p>
-                        </div>
-                    {% endfor %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Algorithm</th>
+                                <th>Model Size</th>
+                                <th>Transcription</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key, result in transcription.items() %}
+                                <tr>
+                                    <td>{{ result.algorithm }}</td>
+                                    <td>{{ result.model_size if result.model_size else 'N/A' }}</td>
+                                    <td>{{ result.text }}</td>
+                                    <td>{{ result.time }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             {% endif %}
         </div>

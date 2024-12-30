@@ -95,9 +95,12 @@ def speech_analysis():
                     success, text = transcriber.transcribe_audio(wav_filepath, algo, model_size)
                     elapsed_time = time.time() - start_time
                     transcription_results[algo] = {
+                        "algorithm": algo,
+                        "model_size": model_size if algo.startswith("whisper") else None,
                         'text': text if success else "Transcription failed",
                         'time': f"{elapsed_time:.2f} seconds"
                     }
+                    print(transcription_results)
             elif choice == 'cross_comparison_model_size':
                 # Run all Whisper model sizes
                 model_sizes = ['tiny', 'base', 'small', 'medium', 'large', 'turbo']
@@ -106,6 +109,8 @@ def speech_analysis():
                     success, text = transcriber.transcribe_audio(wav_filepath, 'whisper-online', model)
                     elapsed_time = time.time() - start_time
                     transcription_results[model] = {
+                        "algorithm": "whisper-online",
+                        "model_size": model,
                         'text': text if success else "Transcription failed",
                         'time': f"{elapsed_time:.2f} seconds"
                     }
@@ -115,6 +120,8 @@ def speech_analysis():
                 success, text = transcriber.transcribe_audio(wav_filepath, choice, model_size)
                 elapsed_time = time.time() - start_time
                 transcription_results[choice] = {
+                    "algorithm": choice,
+                    "model_size": model_size if choice.startswith("whisper") else None,
                     'text': text if success else f"Transcription failed!",
                     'time': f"{elapsed_time:.2f} seconds"
                 }
