@@ -12,25 +12,24 @@ def convert_to_wav(input_path, output_path):
         raise RuntimeError(f"FFmpeg conversion failed: {e}")
 
 class SpeechTranscriber:
-    def __init__(self, model_size):
+    def __init__(self):
         self.recognizer = sr.Recognizer()
-        self.whisper_model = whisper.load_model(model_size)  # Choose the appropriate model size
-    def transcribe_audio(self, file_path, algorithm):
+
+    def transcribe_audio(self, file_path, algorithm, model_size=None):
         with sr.AudioFile(file_path) as source:
             self.recognizer.adjust_for_ambient_noise(source)
             audio_data = self.recognizer.record(source)
 
-        algorithm = algorithm.lower()
         if algorithm == 'whisper-offline':
-            return self.transcribe_whisper_offline(audio_data)
+            return self.transcribe_whisper_offline(file_path)
         elif algorithm == 'whisperx-offline':
-            return self.transcribe_whisperx(audio_data)
+            return self.transcribe_whisperx(file_path)
         elif algorithm == 'whisper-online':
-            return self.transcribe_whisper_online(file_path)
+            return self.transcribe_whisper_online(file_path, model_size)
         elif algorithm == 'google':
             return self.transcribe_google(audio_data)
         elif algorithm == 'sphinx':
-            return self.transcribe_sphinx(audio_data)
+            return self.transcribe_sphinx(file_path)
         else:
             return (False, "Unsupported transcription service")
 
@@ -45,12 +44,17 @@ class SpeechTranscriber:
             return (False, f"Could not request results from Google Speech Recognition service; {e}")
 
     # Implementation for Whisper Online
-    def transcribe_whisper_online(self, file_path):
+    def transcribe_whisper_online(self, file_path, model_size):
         try:
-            result = self.whisper_model.transcribe(file_path)
+            # Load the Whisper model
+            self.model = whisper.load_model(model_size or "base")  # Default to "base" if no model size provided
+            # Use the file path directly for Whisper
+            result = self.model.transcribe(file_path)
             return (True, result['text'])
         except Exception as e:
-            return (False, f"Whisper Online transcription failed; {e}")
+            import traceback
+            traceback_details = traceback.format_exc()
+            return (False, f"Whisper Online transcription failed; {e}\nDetails:\n{traceback_details}")
 
     # Implementation of Whisper Offline
     def transcribe_whisper_offline(self, audio_data):

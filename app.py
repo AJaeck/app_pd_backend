@@ -7,6 +7,7 @@ from flask_cors import CORS
 import uuid
 from datetime import datetime
 import os
+import time
 import secrets
 from werkzeug.utils import secure_filename
 
@@ -51,12 +52,12 @@ class Results(db.Model):
     transcription = db.Column(db.Text, nullable=True)  # Transcribed text
 
     user = db.relationship('User', backref=db.backref('results', lazy=True))
-
 @app.route('/')
 def hello_world():
     return render_template("index.html")
 
-from speechprocessing import SpeechTranscriber
+from flask import render_template, request, jsonify, flash
+import time
 
 @app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
@@ -66,8 +67,8 @@ def speech_analysis():
     if form.validate_on_submit():
         audio = form.file.data
         choice = form.transcription_choice.data
+        model_size = form.model_size.data  # Get selected model size
         audio_filename = secure_filename(audio.filename)
-        model_size = form.model_size.data # Get the selected model size
 
         if audio_filename != '':
             file_ext = os.path.splitext(audio_filename)[1]
@@ -83,17 +84,42 @@ def speech_analysis():
             wav_filepath = audio_path.rsplit('.', 1)[0] + '.wav'
             convert_to_wav(audio_path, wav_filepath)
 
-            print(f"{model_size} was selected for algo {choice}")
-            transcriber = SpeechTranscriber(model_size)
-            success, text = transcriber.transcribe_audio(wav_filepath, choice)
-            transcription_results[choice] = text if success else "Transcription failed"
+            # Instantiate the SpeechTranscriber
+            transcriber = SpeechTranscriber()
 
-            # Remove temporary files
-            os.remove(audio_path)
-            os.remove(wav_filepath)
+            if choice == 'cross_comparison_algo':
+                # Run all algorithms
+                algorithms = ['google', 'whisper-online']  # Add more algorithms if needed
+                for algo in algorithms:
+                    start_time = time.time()
+                    success, text = transcriber.transcribe_audio(wav_filepath, algo, model_size)
+                    elapsed_time = time.time() - start_time
+                    transcription_results[algo] = {
+                        'text': text if success else "Transcription failed",
+                        'time': f"{elapsed_time:.2f} seconds"
+                    }
+            elif choice == 'cross_comparison_model_size':
+                # Run all Whisper model sizes
+                model_sizes = ['tiny', 'base', 'small', 'medium', 'large', 'turbo']
+                for model in model_sizes:
+                    start_time = time.time()
+                    success, text = transcriber.transcribe_audio(wav_filepath, 'whisper-online', model)
+                    elapsed_time = time.time() - start_time
+                    transcription_results[model] = {
+                        'text': text if success else "Transcription failed",
+                        'time': f"{elapsed_time:.2f} seconds"
+                    }
+            else:
+                # Run selected algorithm and model size
+                start_time = time.time()
+                success, text = transcriber.transcribe_audio(wav_filepath, choice, model_size)
+                elapsed_time = time.time() - start_time
+                transcription_results[choice] = {
+                    'text': text if success else f"Transcription failed!",
+                    'time': f"{elapsed_time:.2f} seconds"
+                }
 
     return render_template("speech-analysis.html", form=form, transcription=transcription_results)
-
 
 @app.route('/create-user', methods=['POST'])
 def create_user():
@@ -180,10 +206,8 @@ def process_speech_tasks(task_type, user_id):
         return jsonify({'error': 'No selected file'}), 400
 
     # Retrieve optional parameters
-    print(request.form)
     transcription_algo = request.form.get('algorithm').lower() # Default to "whisper" ASR
     language_model = request.form.get('modelSize')  # Default to "tiny" model
-    print(f"{language_model} as model selected and {transcription_algo} as transcription algo")
 
     # Save the uploaded file
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -199,7 +223,6 @@ def process_speech_tasks(task_type, user_id):
         if task_type == 'reading':
             # Instantiate the SpeechTranscriber with the selected language model
             transcriber = SpeechTranscriber(language_model)
-            print(f"{transcription_algo} was selected as algorithm")
 
             # Call transcription function
             success, transcription_or_error = transcriber.transcribe_audio(wav_filepath, transcription_algo)
