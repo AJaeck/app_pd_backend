@@ -1,5 +1,4 @@
 {% block content %}
-
 <!DOCTYPE html>
 <html>
     <head>
@@ -8,13 +7,13 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         {% block styles %}
-            <!-- Bootstrap CSS -->
-            {{ bootstrap.load_css() }}
+            <!-- Bootstrap CSS from CDN -->
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
         {% endblock %}
 
         <title>{{ the_title }}</title>
 
-        <!-- note the special href for files in the Flask "static" folder -->
+        <!-- Static CSS -->
         <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
         {% endblock %}
     </head>
@@ -34,11 +33,9 @@
         </main>
 
         {% block scripts %}
-            <!-- Optional JavaScript -->
-            {{ bootstrap.load_js() }}
+            <!-- Bootstrap JS from CDN -->
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
         {% endblock %}
-
     </body>
 </html>
-
 {% endblock %}

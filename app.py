@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template, flash
-from flask_bootstrap import Bootstrap5
+from flask_bootstrap import Bootstrap
 from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -23,7 +23,7 @@ app.config['MAX_CONTENT_LENGTH'] = 250 * 1024 * 1024 # 25MB
 app.config['UPLOAD_EXTENSIONS'] = ['.mp3', '.wav']
 
 # Bootstrap-Flask requires this line
-bootstrap = Bootstrap5(app)
+bootstrap = Bootstrap(app)
 # Flask-WTF requires this line
 csrf = CSRFProtect(app)
 # Use csrf.exempt to exclude this route from CSRF protection

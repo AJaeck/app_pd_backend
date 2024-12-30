@@ -1,68 +1,41 @@
-{% extends 'base.html' %}
-{% from 'bootstrap5/form.html' import render_form, render_form_row, render_field %}
-{% from 'bootstrap5/nav.html' import render_nav_item %}
+<!DOCTYPE html>
+<html>
+    <head>
+        {% block head %}
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-{% block title %}
-Dysathria Analyzer
-{% endblock %}
+        {% block styles %}
+            <!-- Bootstrap CSS -->
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+        {% endblock %}
 
-{% block content %}
+        <title>{{ the_title }}</title>
 
-<!--
-	TIPS about using Bootstrap-Flask:
-	https://github.com/helloflask/bootstrap-flask
-	https://bootstrap-flask.readthedocs.io/
--->
-
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show text-md-center position-absolute top-20 start-50 translate-middle" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
-<div class="container container__100-resp form_page px-4 py-5">
-    <h1 class="text-center">LMU Speech Analyzer</h1>
-    <p>
-      Der LMU Speech Analyzer ist eine Webanwendung, die entwickelt wurde,
-        um Sprache zu analysieren und detaillierte Einblicke in die Nutzung von Wörtern,
-        Satzstrukturen und Sprachmustern zu bieten. Sie bietet Benutzern
-        nützliche Informationen zur Verbesserung ihrer Sprechfähigkeiten und
-        Kommunikationseffizienz. Ideal für Pädagogen, Sprachtherapeuten und alle, die
-        ihre sprachlichen Fähigkeiten verbessern möchten.
-    </p>
-    <br>
-    <form method="POST" action="/speech-analysis" enctype="multipart/form-data" id="uploadForm">
-        {{ form.csrf_token }}
-        {{ render_field(form.file) }}
-        {{ render_field(form.transcription_choice) }}
-       <div class="text-center">
-            <button type="submit" class="btn btn-primary" id="submitBtn">Starte Transkription</button>
-        </div>
-        <div class="d-flex justify-content-center m-3">
-          <div id="loadingSpinner" class="spinner-border text-primary" role="status" style="display: none;">
-            <span class="visually-hidden">Loading...</span>
+        <!-- note the special href for files in the Flask "static" folder -->
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+        {% endblock %}
+    </head>
+    <body>
+        <div id="container">
+        <div class="container">
+            <header class="d-flex justify-content-center py-3">
+              <ul class="nav nav-pills">
+                <li class="nav-item"><a href="/" class="nav-link active" aria-current="page">Home</a></li>
+                <li class="nav-item"><a href="/speech-analysis" class="nav-link">Analyzer</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">FAQs</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">About</a></li>
+              </ul>
+            </header>
           </div>
+          <!-- Jinja directives: page contents will go between them -->
+          {% block content %}
+          {% endblock %}
         </div>
-    </form>
-    {% if transcription %}
-        <h2>Dein Ergebnis</h2>
-        {% for key, value in transcription.items() %}
-            <h3>{{ key }} Transcription</h3>
-            <p>{{ value }}</p>
-        {% endfor %}
-    {% endif %}
-</div>
-<script>
-    document.getElementById('uploadForm').addEventListener('submit', function() {
-        document.getElementById('submitBtn').disabled = true;
-        document.getElementById('loadingSpinner').style.display = 'inline-block';
 
-    });
-</script>
-{% endblock %}
+        {% block scripts %}
+            <!-- Optional JavaScript -->
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+        {% endblock %}
+    </body>
+</html>
