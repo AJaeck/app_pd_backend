@@ -176,16 +176,18 @@ def process_speech_tasks(task_type, user_id):
         filename = f"{user_id}-{timestamp}-{task_type}audiofile"
         original_filepath = os.path.join(f'static/audio_speech_tasks/{task_type}', filename)  # Define your path to save audio files
         file.save(original_filepath)
+
         if task_type == 'reading':
+            # Instantiate the SpeechTranscriber
+            transcriber = SpeechTranscriber()
             #get selected transcription algorithm
-            transcriptionAlgo = request.form['algorithm']
-            print(transcriptionAlgo)
+            transcription_algo = request.form['algorithm']
+            print(f"{transcription_algo} was selected as algorithm")
             # Convert the file to WAV using ffmpeg-python
             wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
             convert_to_wav(original_filepath, wav_filepath)
             # Call transcription function here
-            success, transcription_or_error = transcribe_audio(wav_filepath, transcriptionAlgo)
-            print(transcription_or_error)
+            success, transcription_or_error = transcriber.transcribe_audio(wav_filepath, transcription_algo)
             # Optionally, remove files after processing
             os.remove(original_filepath)
             if success:
@@ -206,6 +208,7 @@ def process_speech_tasks(task_type, user_id):
                 return jsonify(
                     {'error': 'Transcription failed',
                      'reason': transcription_or_error}), 422  # 422 Unprocessable Entity
+
         elif task_type == 'pataka':
             # Convert the file to WAV using ffmpeg-python
             wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
@@ -246,5 +249,5 @@ def init_db():
         db.create_all()
 
 if __name__ == '__main__':
-    init_db()  # Uncomment this if you want to initialize the db every time you run the app
+    #init_db()  # Uncomment this if you want to initialize the db every time you run the app
     app.run(debug=True)

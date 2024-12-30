@@ -1,15 +1,22 @@
 import speech_recognition as sr
 import ffmpeg
 import whisper
+import os
 
 def convert_to_wav(input_path, output_path):
-    ffmpeg.input(input_path).output(output_path).run()
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file does not exist: {input_path}")
+
+    try:
+        ffmpeg.input(input_path).output(output_path).run()
+    except Exception as e:
+        raise RuntimeError(f"FFmpeg conversion failed: {e}")
 
 class SpeechTranscriber:
     def __init__(self):
         self.recognizer = sr.Recognizer()
         self.whisper_model = whisper.load_model("base")  # Choose the appropriate model size
-    def transcribe_audio(self, file_path, algorithm='google'):
+    def transcribe_audio(self, file_path, algorithm):
         with sr.AudioFile(file_path) as source:
             self.recognizer.adjust_for_ambient_noise(source)
             audio_data = self.recognizer.record(source)
