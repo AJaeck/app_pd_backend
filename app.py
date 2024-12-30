@@ -26,14 +26,10 @@ app.config['UPLOAD_EXTENSIONS'] = ['.mp3', '.wav']
 bootstrap = Bootstrap(app)
 # Flask-WTF requires this line
 csrf = CSRFProtect(app)
+
 # Use csrf.exempt to exclude this route from CSRF protection
-
-
 # Allow CORS for development env
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
-
-# Set the PATH environment variable
-os.environ['PATH'] += os.pathsep + r"C:\Users\ajaec\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-7.0-full_build\bin"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(app)
@@ -71,6 +67,7 @@ def speech_analysis():
         audio = form.file.data
         choice = form.transcription_choice.data
         audio_filename = secure_filename(audio.filename)
+        model_size = form.model_size.data # Get the selected model size
 
         if audio_filename != '':
             file_ext = os.path.splitext(audio_filename)[1]
@@ -82,9 +79,18 @@ def speech_analysis():
             audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_name)
             audio.save(audio_path)
 
-            transcriber = SpeechTranscriber()
-            success, text = transcriber.transcribe_audio(audio_path, choice)
+            # Convert the file to WAV using ffmpeg
+            wav_filepath = audio_path.rsplit('.', 1)[0] + '.wav'
+            convert_to_wav(audio_path, wav_filepath)
+
+            print(f"{model_size} was selected for algo {choice}")
+            transcriber = SpeechTranscriber(model_size)
+            success, text = transcriber.transcribe_audio(wav_filepath, choice)
             transcription_results[choice] = text if success else "Transcription failed"
+
+            # Remove temporary files
+            os.remove(audio_path)
+            os.remove(wav_filepath)
 
     return render_template("speech-analysis.html", form=form, transcription=transcription_results)
 

@@ -6,16 +6,15 @@ import os
 def convert_to_wav(input_path, output_path):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file does not exist: {input_path}")
-
     try:
         ffmpeg.input(input_path).output(output_path).run()
     except Exception as e:
         raise RuntimeError(f"FFmpeg conversion failed: {e}")
 
 class SpeechTranscriber:
-    def __init__(self, language_model):
+    def __init__(self, model_size):
         self.recognizer = sr.Recognizer()
-        self.whisper_model = whisper.load_model(language_model)  # Choose the appropriate model size
+        self.whisper_model = whisper.load_model(model_size)  # Choose the appropriate model size
     def transcribe_audio(self, file_path, algorithm):
         with sr.AudioFile(file_path) as source:
             self.recognizer.adjust_for_ambient_noise(source)
@@ -62,6 +61,7 @@ class SpeechTranscriber:
             return (False, "Whisper Speech Recognition could not understand audio")
         except sr.RequestError as e:
             return (False, f"Could not request results from Whisper Speech Recognition service; {e}")
+
     # Implementation of WhisperX
     def transcribe_whisperx(self, file_path):
         try:
