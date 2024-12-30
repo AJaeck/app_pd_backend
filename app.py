@@ -168,79 +168,66 @@ def process_speech_tasks(task_type, user_id):
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    if file:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        filename = f"{user_id}-{timestamp}-{task_type}audiofile"
-        original_filepath = os.path.join(f'static/audio_speech_tasks/{task_type}', filename)  # Define your path to save audio files
-        file.save(original_filepath)
+
+    # Retrieve optional parameters
+    print(request.form)
+    transcription_algo = request.form.get('algorithm').lower() # Default to "whisper" ASR
+    language_model = request.form.get('modelSize')  # Default to "tiny" model
+    print(f"{language_model} as model selected and {transcription_algo} as transcription algo")
+
+    # Save the uploaded file
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    filename = f"{user_id}-{timestamp}-{task_type}audiofile"
+    original_filepath = os.path.join(f'static/audio_speech_tasks/{task_type}', filename)
+    file.save(original_filepath)
+
+    try:
+        # Convert the file to WAV using ffmpeg
+        wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
+        convert_to_wav(original_filepath, wav_filepath)
 
         if task_type == 'reading':
-            # Instantiate the SpeechTranscriber
-            transcriber = SpeechTranscriber()
-            #get selected transcription algorithm
-            transcription_algo = request.form['algorithm']
+            # Instantiate the SpeechTranscriber with the selected language model
+            transcriber = SpeechTranscriber(language_model)
             print(f"{transcription_algo} was selected as algorithm")
-            # Convert the file to WAV using ffmpeg-python
-            wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
-            convert_to_wav(original_filepath, wav_filepath)
-            # Call transcription function here
+
+            # Call transcription function
             success, transcription_or_error = transcriber.transcribe_audio(wav_filepath, transcription_algo)
-            # Optionally, remove files after processing
-            os.remove(original_filepath)
-            if success:
-                # Save results to database - uncomment when needed again
-                # new_speech_result = Results(user_id=user_id, date=datetime.utcnow(), taps=0, audio_file_path=wav_filepath, transcription=transcription_or_error)
-                try:
-                    # db.session.add(new_speech_result)
-                    # db.session.commit()
-                    return jsonify({'message': 'File uploaded and processed successfully',
-                                    'results': transcription_or_error,
-                                    "task-type": task_type
-                                    }), 200
-                except Exception as e:
-                    # db.session.rollback()
-                    print(f"Database transaction failed: {str(e)}")
-                    return jsonify({'error': f"Database error: {str(e)}"}), 500
-            else:
-                return jsonify(
-                    {'error': 'Transcription failed',
-                     'reason': transcription_or_error}), 422  # 422 Unprocessable Entity
 
         elif task_type == 'pataka':
-            # Convert the file to WAV using ffmpeg-python
-            wav_filepath = original_filepath.rsplit('.', 1)[0] + '.wav'
-            convert_to_wav(original_filepath, wav_filepath)
-            # Call transcription function here
-            success, extraction_or_error = feature_extraction(wav_filepath)
-            # Optionally, remove files after processing
-            os.remove(original_filepath)
-            if success:
-                # Save results to database - uncomment when needed again
-                # new_speech_result = Results(user_id=user_id, date=datetime.utcnow(), taps=0, audio_file_path=wav_filepath, transcription=transcription_or_error)
-                try:
-                    # db.session.add(new_speech_result)
-                    # db.session.commit()
-                    return jsonify({'message': 'File uploaded and processed successfully',
-                                    'results': extraction_or_error,
-                                    'taskType': task_type
-                                    }), 200
-                except Exception as e:
-                    # db.session.rollback()
-                    print(f"Database transaction failed: {str(e)}")
-                    return jsonify({'error': f"Database error: {str(e)}"}), 500
-            else:
-                return jsonify(
-                    {'error': 'Feature extraction failed',
-                     'reason': extraction_or_error}), 422  # 422 Unprocessable Entity
-        else:
-            return jsonify(
-                {'error': 'Transcription failed',
-                 'reason': f"No correct task parameter definied. Please etiher use reading or pataka. "
-                           f"Your parameter: {task_type}" }), 422  # 422 Unprocessable Entity
+            # Perform feature extraction
+            success, transcription_or_error = feature_extraction(wav_filepath)
 
+        else:
+            return jsonify({'error': 'Invalid task type', 'reason': f"Unsupported task: {task_type}"}), 422
+
+        # Remove temporary files
+        os.remove(original_filepath)
+
+        if success:
+            return jsonify({
+                'message': 'File uploaded and processed successfully',
+                'results': transcription_or_error,
+                'taskType': task_type
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Processing failed',
+                'reason': transcription_or_error
+            }), 422
+
+    except Exception as e:
+        print(f"Error processing task: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'reason': str(e)}), 500
+
+    finally:
+        # Ensure original file is cleaned up in case of errors
+        if os.path.exists(original_filepath):
+            os.remove(original_filepath)
 
 csrf.exempt(process_speech_tasks) # extempt this endpoint from csrf token
 

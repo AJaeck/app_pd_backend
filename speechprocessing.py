@@ -13,31 +13,25 @@ def convert_to_wav(input_path, output_path):
         raise RuntimeError(f"FFmpeg conversion failed: {e}")
 
 class SpeechTranscriber:
-    def __init__(self):
+    def __init__(self, language_model):
         self.recognizer = sr.Recognizer()
-        self.whisper_model = whisper.load_model("base")  # Choose the appropriate model size
+        self.whisper_model = whisper.load_model(language_model)  # Choose the appropriate model size
     def transcribe_audio(self, file_path, algorithm):
         with sr.AudioFile(file_path) as source:
             self.recognizer.adjust_for_ambient_noise(source)
             audio_data = self.recognizer.record(source)
 
         algorithm = algorithm.lower()
-        if algorithm == 'google':
+        if algorithm == 'whisper-offline':
+            return self.transcribe_whisper_offline(audio_data)
+        elif algorithm == 'whisperx-offline':
+            return self.transcribe_whisperx(audio_data)
+        elif algorithm == 'whisper-online':
+            return self.transcribe_whisper_online(file_path)
+        elif algorithm == 'google':
             return self.transcribe_google(audio_data)
-        elif algorithm == 'google_cloud':
-            return self.transcribe_google_cloud(audio_data)
-        elif algorithm == 'wit':
-            return self.transcribe_wit(audio_data)
-        elif algorithm == 'bing':
-            return self.transcribe_bing(audio_data)
-        elif algorithm == 'houndify':
-            return self.transcribe_houndify(audio_data)
-        elif algorithm == 'ibm':
-            return self.transcribe_ibm(audio_data)
         elif algorithm == 'sphinx':
             return self.transcribe_sphinx(audio_data)
-        elif algorithm == 'whisper':
-            return self.transcribe_whisper(file_path)
         else:
             return (False, "Unsupported transcription service")
 
@@ -51,15 +45,30 @@ class SpeechTranscriber:
         except sr.RequestError as e:
             return (False, f"Could not request results from Google Speech Recognition service; {e}")
 
-    # Implementation for Whisper
-    def transcribe_whisper(self, file_path):
+    # Implementation for Whisper Online
+    def transcribe_whisper_online(self, file_path):
         try:
             result = self.whisper_model.transcribe(file_path)
             return (True, result['text'])
         except Exception as e:
-            return (False, f"Whisper transcription failed; {e}")
+            return (False, f"Whisper Online transcription failed; {e}")
 
-    # Add additional methods for other services...
+    # Implementation of Whisper Offline
+    def transcribe_whisper_offline(self, audio_data):
+        try:
+            text = self.recognizer.recognize_google(audio_data)
+            return (True, text)
+        except sr.UnknownValueError:
+            return (False, "Whisper Speech Recognition could not understand audio")
+        except sr.RequestError as e:
+            return (False, f"Could not request results from Whisper Speech Recognition service; {e}")
+    # Implementation of WhisperX
+    def transcribe_whisperx(self, file_path):
+        try:
+            result = self.whisper_model.transcribe(file_path)
+            return (True, result['text'])
+        except Exception as e:
+            return (False, f"WhisperX transcription failed; {e}")
 
 def feature_extraction(file_path):
     try:
