@@ -12,6 +12,7 @@
 *.wma
 *.ogg
 *.flac
+*.venv
 
 instance/*
 !instance/.gitignore
