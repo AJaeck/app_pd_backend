@@ -8,6 +8,7 @@ class Upload_Form(FlaskForm):
     transcription_choice = SelectField('Choose Transcription Service', choices=[
         ('google', 'Google Speech Recognition'),
         ('whisper-online', 'Whisper'),
+        ('whisper-offline', 'Whisper (Offline)'),
         ('cross_comparison_algo', 'Cross Comparison Algorithms (Selects all)'),
         ('cross_comparison_model_size', 'Cross Comparison Whisper Sizes (Selects all model sizes)'),
         #('sphinx', 'Sphinx (offline)')
@@ -26,4 +27,3 @@ class Upload_Form(FlaskForm):
     )
 
     submit = SubmitField('Start Transcription')
-

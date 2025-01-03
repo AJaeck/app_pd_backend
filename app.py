@@ -89,7 +89,7 @@ def speech_analysis():
 
             if choice == 'cross_comparison_algo':
                 # Run all algorithms
-                algorithms = ['google', 'whisper-online']  # Add more algorithms if needed
+                algorithms = ['google', 'whisper-online', 'whisper-offline']  # Add more algorithms if needed
                 for algo in algorithms:
                     start_time = time.time()
                     success, text = transcriber.transcribe_audio(wav_filepath, algo, model_size)

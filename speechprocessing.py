@@ -21,21 +21,23 @@ class SpeechTranscriber:
             audio_data = self.recognizer.record(source)
 
         if algorithm == 'whisper-offline':
-            return self.transcribe_whisper_offline(file_path)
+            print(audio_data)
+            return self.transcribe_whisper_offline(audio_data, model_size)
         elif algorithm == 'whisperx-offline':
-            return self.transcribe_whisperx(file_path)
+            return self.transcribe_whisperx(audio_data)
         elif algorithm == 'whisper-online':
             return self.transcribe_whisper_online(file_path, model_size)
         elif algorithm == 'google':
             return self.transcribe_google(audio_data)
         elif algorithm == 'sphinx':
-            return self.transcribe_sphinx(file_path)
+            return self.transcribe_sphinx(audio_data)
         else:
             return (False, "Unsupported transcription service")
 
     # Example implementation for Google
     def transcribe_google(self, audio_data):
         try:
+            print(audio_data)
             text = self.recognizer.recognize_google(audio_data)
             return (True, text)
         except sr.UnknownValueError:
@@ -57,9 +59,10 @@ class SpeechTranscriber:
             return (False, f"Whisper Online transcription failed; {e}\nDetails:\n{traceback_details}")
 
     # Implementation of Whisper Offline
-    def transcribe_whisper_offline(self, audio_data):
+    def transcribe_whisper_offline(self, audio_data, model_size):
         try:
-            text = self.recognizer.recognize_google(audio_data)
+            print(model_size)
+            text = self.recognizer.recognize_whisper(audio_data, model_size or "base")
             return (True, text)
         except sr.UnknownValueError:
             return (False, "Whisper Speech Recognition could not understand audio")

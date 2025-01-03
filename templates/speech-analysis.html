@@ -1,119 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        {% block head %}
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Speech Analysis</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-        {% endblock %}
-    </head>
-    <body>
-        <div id="container">
-            <div class="container">
-                <header class="d-flex justify-content-center py-3">
-                    <ul class="nav nav-pills" role="navigation" aria-label="Main Navigation">
-                        <li class="nav-item"><a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}" aria-current="page">Home</a></li>
-                        <li class="nav-item"><a href="/speech-analysis" class="nav-link {% if request.path == '/speech-analysis' %}active{% endif %}">Analyzer</a></li>
-                        <li class="nav-item"><a href="/faqs" class="nav-link {% if request.path == '/faqs' %}active{% endif %}">FAQs</a></li>
-                        <li class="nav-item"><a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">About</a></li>
-                    </ul>
-                </header>
+<head>
+    {% block head %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Speech Analysis</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% endblock %}
+</head>
+<body>
+    <div id="container">
+        <div class="container">
+            <header class="d-flex justify-content-center py-3">
+                <ul class="nav nav-pills" role="navigation" aria-label="Main Navigation">
+                    <li class="nav-item"><a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}" aria-current="page">Home</a></li>
+                    <li class="nav-item"><a href="/speech-analysis" class="nav-link {% if request.path == '/speech-analysis' %}active{% endif %}">Analyzer</a></li>
+                    <li class="nav-item"><a href="/faqs" class="nav-link {% if request.path == '/faqs' %}active{% endif %}">FAQs</a></li>
+                    <li class="nav-item"><a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">About</a></li>
+                </ul>
+            </header>
+        </div>
+    </div>
+    <div class="container mt-5">
+        <h1 class="text-center">Speech Analysis</h1>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Form Section -->
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('speech_analysis') }}" id="transcriptionForm">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                {{ form.file.label(class="form-label") }}
+                {{ form.file(class="form-control") }}
+                {% if form.file.errors %}
+                    <div class="text-danger">
+                        {{ form.file.errors[0] }}
+                    </div>
+                {% endif %}
             </div>
+
+            <div class="mb-3">
+                {{ form.transcription_choice.label(class="form-label") }}
+                {{ form.transcription_choice(class="form-select") }}
+            </div>
+
+            <!-- Conditional Dropdown for Language Model -->
+            <div id="modelSizeContainer" class="mb-3" style="display: none;">
+                {{ form.model_size.label(class="form-label") }}
+                {{ form.model_size(class="form-select") }}
+            </div>
+
+            <div class="text-center">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+
+        <!-- Spinner -->
+        <div id="loadingSpinner" class="text-center mt-5" style="display: none;">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-3">Audio file is being transcribed. This can take a few minutes.</div>
         </div>
-        <div class="container mt-5">
-            <h1 class="text-center">Speech Analysis</h1>
 
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% if messages %}
-                {% for category, message in messages %}
-                  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                  </div>
-                {% endfor %}
-              {% endif %}
-            {% endwith %}
-
-            <!-- Form Section -->
-            <form method="POST" enctype="multipart/form-data" action="{{ url_for('speech_analysis') }}">
-                {{ form.hidden_tag() }}
-
-                <div class="mb-3">
-                    {{ form.file.label(class="form-label") }}
-                    {{ form.file(class="form-control") }}
-                    {% if form.file.errors %}
-                        <div class="text-danger">
-                            {{ form.file.errors[0] }}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <div class="mb-3">
-                    {{ form.transcription_choice.label(class="form-label") }}
-                    {{ form.transcription_choice(class="form-select") }}
-                </div>
-
-                <!-- Conditional Dropdown for Language Model -->
-                <div id="modelSizeContainer" class="mb-3" style="display: none;">
-                    {{ form.model_size.label(class="form-label") }}
-                    {{ form.model_size(class="form-select") }}
-                </div>
-
-                <div class="text-center">
-                    {{ form.submit(class="btn btn-primary") }}
-                </div>
-            </form>
-
-            <!-- Transcription Results -->
-
-            {% if transcription %}
-                <div class="mt-5">
-                    <h2>Transcription Results</h2>
-                    <table class="table table-striped">
-                        <thead>
+        <!-- Transcription Results -->
+        {% if transcription %}
+            <div class="mt-5">
+                <h2>Transcription Results</h2>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Algorithm</th>
+                            <th>Model Size</th>
+                            <th>Transcription</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key, result in transcription.items() %}
                             <tr>
-                                <th>Algorithm</th>
-                                <th>Model Size</th>
-                                <th>Transcription</th>
-                                <th>Time</th>
+                                <td>{{ result.algorithm }}</td>
+                                <td>{{ result.model_size if result.model_size else 'N/A' }}</td>
+                                <td>{{ result.text }}</td>
+                                <td>{{ result.time }}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {% for key, result in transcription.items() %}
-                                <tr>
-                                    <td>{{ result.algorithm }}</td>
-                                    <td>{{ result.model_size if result.model_size else 'N/A' }}</td>
-                                    <td>{{ result.text }}</td>
-                                    <td>{{ result.time }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% endif %}
-        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            // Show or hide the language model dropdown based on the selected algorithm
-            document.addEventListener('DOMContentLoaded', function () {
-                const transcriptionChoice = document.querySelector('[name="transcription_choice"]');
-                const modelSizeContainer = document.getElementById('modelSizeContainer');
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const transcriptionForm = document.getElementById('transcriptionForm');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const transcriptionChoice = document.querySelector('[name="transcription_choice"]');
+            const modelSizeContainer = document.getElementById('modelSizeContainer');
+            const submitButton = document.getElementById('submit');
 
-                transcriptionChoice.addEventListener('change', function () {
-                    if (this.value.toLowerCase().includes('whisper')) {
-                        modelSizeContainer.style.display = 'block';
-                    } else if (['cross_comparison_algo'].includes(this.value)) {
-                        modelSizeContainer.style.display = 'block';
-                    }
-                    else {
-                        modelSizeContainer.style.display = 'none';
-                    }
-                });
+
+            transcriptionForm.addEventListener('submit', function () {
+               // Show spinner on form submit
+                loadingSpinner.style.display = 'block';
+                // Add 'disabled' class to the button and show spinner
+                submitButton.classList.add('disabled');
             });
-        </script>
-    </body>
+
+            // Show or hide the language model dropdown based on the selected algorithm
+            transcriptionChoice.addEventListener('change', function () {
+                if (this.value.toLowerCase().includes('whisper')) {
+                    modelSizeContainer.style.display = 'block';
+                } else if (['cross_comparison_algo'].includes(this.value)) {
+                    modelSizeContainer.style.display = 'block';
+                } else {
+                    modelSizeContainer.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
 </html>
