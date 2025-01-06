@@ -40,7 +40,7 @@ class SpeechTranscriber:
         if algorithm == 'whisper':
             return self.transcribe_whisper(file_path, model_size)
         elif algorithm == 'whisperx':
-            return self.transcribe_whisperx(file_path)
+            return self.transcribe_whisperx(file_path, model_size)
         else:
             return (False, "Unsupported transcription service")
 
@@ -63,7 +63,7 @@ class SpeechTranscriber:
         except Exception as e:
             return False, f"Whisper Online transcription failed: {e}"
 
-    def transcribe_whisperx(self, file_path):
+    def transcribe_whisperx(self, file_path, model_size):
         """
         Transcribe audio using WhisperX.
 
@@ -78,7 +78,7 @@ class SpeechTranscriber:
             batch_size = 16  # reduce if low on GPU mem
             compute_type = "int8"  # change to "int8" if low on GPU mem (may reduce accuracy)
             # 1. Transcribe with original whisper (batched)
-            model = whisperx.load_model("large-v2", device, compute_type=compute_type, language="de")
+            model = whisperx.load_model(model_size, device, compute_type=compute_type, language="de")
             audio = whisperx.load_audio(file_path)
             result = model.transcribe(audio, batch_size=batch_size)
 

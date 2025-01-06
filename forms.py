@@ -19,8 +19,8 @@ class Upload_Form(FlaskForm):
         ('base', 'Base'),
         ('small', 'Small'),
         ('medium', 'Medium'),
-        ('large', 'Large (~10 GB VRAM)'),
-        ('large-v2', 'Large v2'),
+        ('large', 'Large (Whisper Only)'),
+        ('large-v2', 'Large v2 (WhisperX Only)'),
         ('large-v3', 'Large v3'),
         ('turbo', 'Turbo')
     ]

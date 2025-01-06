@@ -267,10 +267,11 @@ def process_speech_tasks(task_type, user_id):
 
         if task_type == 'reading':
             # Instantiate the SpeechTranscriber with the selected language model
-            transcriber = SpeechTranscriber(language_model)
+            transcriber = SpeechTranscriber()
 
             # Call transcription function
-            success, transcription_or_error = transcriber.transcribe_audio(wav_filepath, transcription_algo)
+            # Run a single algorithm
+            success, transcription_or_error = transcriber.transcribe_audio(wav_filepath, transcription_algo, language_model)
 
         elif task_type == 'pataka':
             # Perform feature extraction
