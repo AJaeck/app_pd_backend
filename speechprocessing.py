@@ -1,9 +1,21 @@
-import speech_recognition as sr
-import ffmpeg
-import whisper
 import os
+import json
+import ffmpeg
+import whisper_timestamped as whisper
+import whisperx
 
 def convert_to_wav(input_path, output_path):
+    """
+    Convert audio file to WAV format with specified parameters.
+
+    Args:
+        input_path (str): Path to the input audio file.
+        output_path (str): Path to save the converted WAV file.
+
+    Raises:
+        FileNotFoundError: If the input file does not exist.
+        RuntimeError: If FFmpeg conversion fails.
+    """
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file does not exist: {input_path}")
     try:
@@ -12,81 +24,90 @@ def convert_to_wav(input_path, output_path):
         raise RuntimeError(f"FFmpeg conversion failed: {e}")
 
 class SpeechTranscriber:
-    def __init__(self):
-        self.recognizer = sr.Recognizer()
 
     def transcribe_audio(self, file_path, algorithm, model_size=None):
-        with sr.AudioFile(file_path) as source:
-            self.recognizer.adjust_for_ambient_noise(source)
-            audio_data = self.recognizer.record(source)
+        """
+        Transcribe audio using the specified algorithm.
 
-        if algorithm == 'whisper-offline':
-            print(audio_data)
-            return self.transcribe_whisper_offline(audio_data, model_size)
-        elif algorithm == 'whisperx-offline':
-            return self.transcribe_whisperx(audio_data)
-        elif algorithm == 'whisper-online':
-            return self.transcribe_whisper_online(file_path, model_size)
-        elif algorithm == 'google':
-            return self.transcribe_google(audio_data)
-        elif algorithm == 'sphinx':
-            return self.transcribe_sphinx(audio_data)
+        Args:
+            file_path (str): Path to the audio file.
+            algorithm (str): Transcription algorithm to use.
+            model_size (str, optional): Model size for Whisper. Defaults to None.
+
+        Returns:
+            tuple: (success (bool), transcription or error message)
+        """
+        if algorithm == 'whisper':
+            return self.transcribe_whisper(file_path, model_size)
+        elif algorithm == 'whisperx':
+            return self.transcribe_whisperx(file_path)
         else:
             return (False, "Unsupported transcription service")
 
-    # Example implementation for Google
-    def transcribe_google(self, audio_data):
-        try:
-            print(audio_data)
-            text = self.recognizer.recognize_google(audio_data)
-            return (True, text)
-        except sr.UnknownValueError:
-            return (False, "Google Speech Recognition could not understand audio")
-        except sr.RequestError as e:
-            return (False, f"Could not request results from Google Speech Recognition service; {e}")
+    def transcribe_whisper(self, file_path, model_size):
+        """
+        Transcribe audio using vanilla Whisper from OpenAI.
 
-    # Implementation for Whisper Online
-    def transcribe_whisper_online(self, file_path, model_size):
+        Args:
+            file_path (str): Path to the audio file.
+            model_size (str): Model size for Whisper.
+
+        Returns:
+            tuple: (success (bool), transcription or error message)
+        """
         try:
-            # Load the Whisper model
-            self.model = whisper.load_model(model_size or "base")  # Default to "base" if no model size provided
-            # Use the file path directly for Whisper
-            result = self.model.transcribe(file_path)
-            return (True, result['text'])
+            model_size = model_size or "base"
+            model = whisper.load_model(model_size)
+            result = whisper.transcribe(model, file_path, language="de")
+            return True, result['text']
         except Exception as e:
-            import traceback
-            traceback_details = traceback.format_exc()
-            return (False, f"Whisper Online transcription failed; {e}\nDetails:\n{traceback_details}")
+            return False, f"Whisper Online transcription failed: {e}"
 
-    # Implementation of Whisper Offline
-    def transcribe_whisper_offline(self, audio_data, model_size):
-        try:
-            print(model_size)
-            text = self.recognizer.recognize_whisper(audio_data, model_size or "base")
-            return (True, text)
-        except sr.UnknownValueError:
-            return (False, "Whisper Speech Recognition could not understand audio")
-        except sr.RequestError as e:
-            return (False, f"Could not request results from Whisper Speech Recognition service; {e}")
-
-    # Implementation of WhisperX
     def transcribe_whisperx(self, file_path):
+        """
+        Transcribe audio using WhisperX.
+
+        Args:
+            file_path (str): Path to the audio file.
+
+        Returns:
+            tuple: (success (bool), transcription or error message)
+        """
         try:
-            result = self.whisper_model.transcribe(file_path)
-            return (True, result['text'])
+            device = "cpu"
+            batch_size = 16  # reduce if low on GPU mem
+            compute_type = "int8"  # change to "int8" if low on GPU mem (may reduce accuracy)
+            # 1. Transcribe with original whisper (batched)
+            model = whisperx.load_model("large-v2", device, compute_type=compute_type, language="de")
+            audio = whisperx.load_audio(file_path)
+            result = model.transcribe(audio, batch_size=batch_size)
+
+            # Combine all texts into one
+            full_text = " ".join(segment['text'] for segment in result['segments'])
+            print(full_text)  # before
+
+            # 2. Align whisper output
+            model_a, metadata = whisperx.load_align_model(language_code="de", device=device)
+            result = whisperx.align(result["segments"], model_a, metadata, audio, device,
+                                    return_char_alignments=False)
+            #print(result["segments"])  # after alignment
+            return True, full_text
         except Exception as e:
-            return (False, f"WhisperX transcription failed; {e}")
+            return False, f"WhisperX transcription failed: {e}"
+
 
 def feature_extraction(file_path):
-    try:
-        # Recognize (convert from speech to text) using the default API key
-        text = "Feature Extraction coming soon"
-        return (True, text)
-    except sr.UnknownValueError:
-        # API was unable to understand the audio
-        print("Feature Extraction failed. Try again.")
-        return (False, "Feature Extraction failed. Try again.")
-    except sr.RequestError as e:
-        # Request failed
-        return (False, f"Feature Extraction failed: {e}")
+    """
+    Placeholder for feature extraction.
 
+    Args:
+        file_path (str): Path to the audio file.
+
+    Returns:
+        tuple: (success (bool), extracted features or error message)
+    """
+    try:
+        # Placeholder text for demonstration purposes
+        return True, "Feature extraction coming soon."
+    except Exception as e:
+        return False, f"Feature extraction failed: {e}"

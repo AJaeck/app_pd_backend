@@ -65,63 +65,106 @@ def speech_analysis():
         model_size = form.model_size.data  # Get selected model size
         audio_filename = secure_filename(audio.filename)
 
-        if audio_filename != '':
-            file_ext = os.path.splitext(audio_filename)[1]
-            if file_ext not in app.config['UPLOAD_EXTENSIONS']:
-                flash(f'File Extension {file_ext} not supported', 'error')
-                return render_template("speech-analysis.html", form=form)
+        if not audio_filename:
+            flash("No file selected.", "error")
+            return render_template("speech-analysis.html", form=form)
 
-            audio_name = str(uuid.uuid1()) + "_" + audio_filename
+        file_ext = os.path.splitext(audio_filename)[1]
+        if file_ext not in app.config['UPLOAD_EXTENSIONS']:
+            flash(f"File extension {file_ext} not supported.", "error")
+            return render_template("speech-analysis.html", form=form)
+
+        try:
+            # Save the uploaded file
+            audio_name = f"{uuid.uuid1()}_{audio_filename}"
             audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_name)
             audio.save(audio_path)
 
-            # Convert the file to WAV using ffmpeg
+            # Convert to WAV format
             wav_filepath = audio_path.rsplit('.', 1)[0] + '.wav'
             convert_to_wav(audio_path, wav_filepath)
 
-            # Instantiate the SpeechTranscriber
+            # Initialize the transcriber
             transcriber = SpeechTranscriber()
 
             if choice == 'cross_comparison_algo':
                 # Run all algorithms
-                algorithms = ['google', 'whisper-online', 'whisper-offline']  # Add more algorithms if needed
-                for algo in algorithms:
-                    start_time = time.time()
-                    success, text = transcriber.transcribe_audio(wav_filepath, algo, model_size)
-                    elapsed_time = time.time() - start_time
-                    transcription_results[algo] = {
-                        "algorithm": algo,
-                        "model_size": model_size if algo.startswith("whisper") else None,
-                        'text': text if success else "Transcription failed",
-                        'time': f"{elapsed_time:.2f} seconds"
-                    }
-                    print(transcription_results)
+                transcription_results = run_cross_comparison_algorithms(transcriber, wav_filepath, model_size)
+
             elif choice == 'cross_comparison_model_size':
                 # Run all Whisper model sizes
-                model_sizes = ['tiny', 'base', 'small', 'medium', 'large', 'large-v2','large-v3', 'turbo']
-                for model in model_sizes:
-                    start_time = time.time()
-                    success, text = transcriber.transcribe_audio(wav_filepath, 'whisper-online', model)
-                    elapsed_time = time.time() - start_time
-                    transcription_results[model] = {
-                        "algorithm": "whisper-online",
-                        "model_size": model,
-                        'text': text if success else "Transcription failed",
-                        'time': f"{elapsed_time:.2f} seconds"
-                    }
+                transcription_results = run_cross_comparison_model_sizes(transcriber, wav_filepath)
+
             else:
-                # Run selected algorithm and model size
-                start_time = time.time()
-                success, text = transcriber.transcribe_audio(wav_filepath, choice, model_size)
-                elapsed_time = time.time() - start_time
-                transcription_results[choice] = {
-                    "algorithm": choice,
-                    "model_size": model_size if choice.startswith("whisper") else None,
-                    'text': text if success else f"Transcription failed!",
-                    'time': f"{elapsed_time:.2f} seconds"
-                }
+                # Run a single algorithm
+                transcription_results = run_single_transcription(transcriber, wav_filepath, choice, model_size)
+
+        except Exception as e:
+            flash(f"An error occurred: {str(e)}", "error")
+            return render_template("speech-analysis.html", form=form)
 
     return render_template("speech-analysis.html", form=form, transcription=transcription_results)
+
+
+def run_cross_comparison_algorithms(transcriber, file_path, model_size):
+    """
+    Runs all available algorithms for cross-comparison and returns the results.
+    """
+    algorithms = ['whisper', 'whisperx']  # Extend as needed
+    results = {}
+
+    for algo in algorithms:
+        start_time = time.time()
+        success, text = transcriber.transcribe_audio(file_path, algo, model_size)
+        elapsed_time = time.time() - start_time
+        results[algo] = {
+            "algorithm": algo,
+            "model_size": model_size if algo.startswith("whisper") else None,
+            "text": text if success else "Transcription failed",
+            "time": f"{elapsed_time:.2f} seconds",
+        }
+
+    return results
+
+
+def run_cross_comparison_model_sizes(transcriber, file_path):
+    """
+    Runs all Whisper model sizes for cross-comparison and returns the results.
+    """
+    model_sizes = ['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3', 'turbo']
+    results = {}
+
+    for model in model_sizes:
+        start_time = time.time()
+        success, text = transcriber.transcribe_audio(file_path, 'whisper', model)
+        elapsed_time = time.time() - start_time
+        results[model] = {
+            "algorithm": "whisper",
+            "model_size": model,
+            "text": text if success else "Transcription failed",
+            "time": f"{elapsed_time:.2f} seconds",
+        }
+
+    return results
+
+
+def run_single_transcription(transcriber, file_path, algorithm, model_size):
+    """
+    Runs a single transcription algorithm and returns the result.
+    """
+    start_time = time.time()
+    success, text = transcriber.transcribe_audio(file_path, algorithm, model_size)
+    elapsed_time = time.time() - start_time
+
+    return {
+        algorithm: {
+            "algorithm": algorithm,
+            "model_size": model_size if algorithm.startswith("whisper") else None,
+            "text": text if success else "Transcription failed",
+            "time": f"{elapsed_time:.2f} seconds",
+        }
+    }
+
 
 @app.route('/create-user', methods=['POST'])
 def create_user():
