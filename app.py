@@ -10,10 +10,8 @@ import os
 import time
 import secrets
 from werkzeug.utils import secure_filename
-
-#Import WTForms https://flask-wtf.readthedocs.io/en/1.0.x/
 from forms import Upload_Form
-# Importing the speech processing functions
+# Importing custom speech processing functions
 from speechprocessing import SpeechTranscriber, convert_to_wav, feature_extraction
 
 app = Flask(__name__)
@@ -55,9 +53,6 @@ class Results(db.Model):
 @app.route('/')
 def hello_world():
     return render_template("index.html")
-
-from flask import render_template, request, jsonify, flash
-import time
 
 @app.route('/speech-analysis', methods=['GET', 'POST'])
 def speech_analysis():
@@ -103,7 +98,7 @@ def speech_analysis():
                     print(transcription_results)
             elif choice == 'cross_comparison_model_size':
                 # Run all Whisper model sizes
-                model_sizes = ['tiny', 'base', 'small', 'medium', 'large', 'turbo']
+                model_sizes = ['tiny', 'base', 'small', 'medium', 'large', 'large-v2','large-v3', 'turbo']
                 for model in model_sizes:
                     start_time = time.time()
                     success, text = transcriber.transcribe_audio(wav_filepath, 'whisper-online', model)
