@@ -280,9 +280,6 @@ def process_speech_tasks(task_type, user_id):
         else:
             return jsonify({'error': 'Invalid task type', 'reason': f"Unsupported task: {task_type}"}), 422
 
-        # Remove temporary files
-        os.remove(original_filepath)
-
         if success:
             return jsonify({
                 'message': 'File uploaded and processed successfully',
